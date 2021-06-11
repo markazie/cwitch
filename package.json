@@ -1,6 +1,6 @@
 {
   "name": "cwitch",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "NetSuite Upload Account Changer",
   "main": "index.js",
   "bin": "index.js",
