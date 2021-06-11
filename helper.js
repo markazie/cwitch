@@ -71,8 +71,7 @@ const getAuthDetails = ({ accountType, option = '-a' }) => {
 
         if (key) {
             const realm = process.env[`${key}REALM`]
-            const subdomain = realm.toLowerCase().split('_').join('-')
-            const restlet = `https://${subdomain}.${process.env['URL']}`
+            const restlet = process.env[`${key}RESTLET`]
             const nsKey = process.env[`${key}NETSUITE_KEY`]
             const nsSecret = process.env[`${key}NETSUITE_SECRET`]
             const consumerToken = process.env[`${key}CONSUMER_TOKEN`]
