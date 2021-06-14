@@ -2,11 +2,12 @@
 
 "use strict";
 
-import { access, F_OK, readFileSync } from 'fs';
+import { access, F_OK, readFileSync, existsSync, lstatSync } from 'fs';
+import { join } from 'path';
+import { getAuthDetails, showMenu, envPath, tsconfigPath, printHelp, log, setConfig, cwitchconfigPath, currentWD } from './helper.js'
 import dotenv from 'dotenv';
-import { getAuthDetails, showMenu, envPath, tsconfigPath, printHelp, log, setConfig, cwitchconfigPath } from './helper.js'
 
-dotenv.config();
+dotenv.config({ path: envPath });
 
 access(cwitchconfigPath, F_OK, async (err) => {
     if (err) return console.error('can not find cwitchconfig.json file')
@@ -20,17 +21,31 @@ access(cwitchconfigPath, F_OK, async (err) => {
         access(tsconfigPath, F_OK, (err) => {
             if (err) return console.error('can not find tsconfig file')
 
-            const { argv } = process
+            const args = process.argv.slice(2)
 
-            if (argv.length > 2) {
-                const accIndex = argv.indexOf('-a')
-                const switchIndex = argv.indexOf('-s')
-                const helpIndex = argv.indexOf('-h')
+            if (args.length > 0) {
+                const accIndex = args.indexOf('-a')
+                const switchIndex = args.indexOf('-s')
+                const helpIndex = args.indexOf('-h')
+                const uploadIndex = args.indexOf('-u')
+                const dirPaths = []
+
+                if (uploadIndex > -1) {
+                    const pathList = args.slice(uploadIndex + 1)
+                    pathList.forEach(path => {
+                        const relativePath = join(currentWD, path)
+                        if (existsSync(relativePath) && lstatSync(relativePath).isDirectory()) dirPaths.push(relativePath)
+                    })
+                }
 
                 if (helpIndex > -1) printHelp()
-                else if (accIndex > -1) getAuthDetails({ accountType: argv[accIndex + 1], option: '-a' })
-                else if (switchIndex > -1) getAuthDetails({ accountType: argv[switchIndex + 1], option: '-s', shoudCompile: false })
-                else log({ message: 'you have provided and invalid option.' })
+                else if (accIndex > -1) {
+                    getAuthDetails({ accountType: args[accIndex + 1], option: '-a', dirPaths })
+                }
+                else if (switchIndex > -1) {
+                    getAuthDetails({ accountType: args[switchIndex + 1], option: '-s', dirPaths })
+                }
+                else if (!dirPaths[0]) log({ message: 'you have provided and invalid option.' })
 
             } else showMenu();
         })

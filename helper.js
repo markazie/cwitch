@@ -1,14 +1,17 @@
 "use strict";
-import { access, F_OK, readFile, writeFile } from 'fs';
+import { access, F_OK, readFile, writeFile, readdirSync } from 'fs';
 import inquirer from 'inquirer';
-import { exec } from 'child_process';
-import { join, dirname } from 'path';
+import { execSync } from 'child_process';
+import { join, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
+import { setAuthHeader, uploadFileToNetSuite } from './uploadHelper.js';
 
-const DIR_NAME = dirname(fileURLToPath(import.meta.url))
-const envPath = join(DIR_NAME, '../../.env');
-const vscodeSettingsPath = join(DIR_NAME, '../../.vscode/settings.json');
-const cwitchconfigPath = join(DIR_NAME, '../../cwitchconfig.json');
+const dirName = dirname(fileURLToPath(import.meta.url))
+const currentWD = process.cwd()
+const envPath = join(dirName, '../../.env');
+const vscodeSettingsPath = join(dirName, '../../.vscode/settings.json');
+const cwitchconfigPath = join(dirName, '../../cwitchconfig.json');
+const ALLOWED_EXTENSIONS = ['.js', '.html']
 
 let tsconfigPath = '';
 let choiceMap = null;
@@ -48,7 +51,7 @@ const showMenu = async () => {
     }
 }
 
-const getAuthDetails = ({ accountType, option = '-a' }) => {
+const getAuthDetails = ({ accountType, option = '-a', dirPaths = [] }) => {
     if (accountType) {
         const firstChar = accountType.toLowerCase().charAt(0)
 
@@ -77,18 +80,20 @@ const getAuthDetails = ({ accountType, option = '-a' }) => {
             const consumerToken = process.env[`${key}CONSUMER_TOKEN`]
             const consumerSecret = process.env[`${key}CONSUMER_SECRET`]
 
-            compileAndModifySettings({ restlet, nsKey, nsSecret, consumerSecret, consumerToken, realm, shoudCompile: option === '-a' })
+            setAuthHeader({ nsKey, nsSecret, consumerToken, consumerSecret, realm, restlet })
+
+            compileAndModifySettings({ restlet, nsKey, nsSecret, consumerSecret, consumerToken, realm, shoudCompile: option === '-a', dirPaths })
         } else {
             log({ message: `you have provided an invalid value "${accountType}" for option ${option}` })
         }
     } else log({ message: `you have used option ${option} without any value` })
 }
 
-const compileAndModifySettings = ({ restlet, nsKey, nsSecret, consumerToken, consumerSecret, realm, shoudCompile }) => {
+const compileAndModifySettings = ({ restlet, nsKey, nsSecret, consumerToken, consumerSecret, realm, shoudCompile, dirPaths }) => {
     access(vscodeSettingsPath, F_OK, (err) => {
         if (err) return console.error('can not find vscode settings file')
 
-        shoudCompile && compileTS()
+        shoudCompile && compileTS({ dirPaths })
 
         readFile(vscodeSettingsPath, 'utf8', function (err, data) {
             if (err) throw err;
@@ -103,15 +108,40 @@ const compileAndModifySettings = ({ restlet, nsKey, nsSecret, consumerToken, con
 
             writeFile(vscodeSettingsPath, JSON.stringify(vscodeSettings, null, 4), function (err) {
                 if (err) throw err;
+
+                if (!shoudCompile && dirPaths[0]) uploadDirectory({ dirPaths })
             });
         });
     })
 }
 
-const compileTS = () => {
-    exec(`tsc -p ${tsconfigPath}`, (err) => {
-        if (err) throw err;
+const compileTS = ({ dirPaths = [] }) => {
+    execSync(`tsc -p ${tsconfigPath}`, (err) => {
+        if (err) rej(err);
     });
+
+    if (dirPaths[0]) uploadDirectory({ dirPaths })
+}
+
+const uploadDirectory = async ({ dirPaths }) => {
+    const files = []
+
+    dirPaths.forEach((path) => {
+        readdirSync(path).forEach(fileName => {
+            const fileEXT = extname(fileName);
+            if (ALLOWED_EXTENSIONS.indexOf(fileEXT) > -1) {
+                const filePath = join(path, fileName);
+                files.push(filePath)
+            }
+        });
+    })
+
+    for (const file of files) {
+        try {
+            const res = await uploadFileToNetSuite(file);
+            console.log(res);
+        } catch (err) { }
+    }
 }
 
 const printHelp = () => {
@@ -132,4 +162,4 @@ const setConfig = ({ data }) => {
     choiceMap = accounts
 }
 
-export { showMenu, getAuthDetails, printHelp, log, setConfig, envPath, tsconfigPath, cwitchconfigPath }
+export { showMenu, getAuthDetails, printHelp, log, setConfig, dirName, currentWD, envPath, tsconfigPath, cwitchconfigPath }
