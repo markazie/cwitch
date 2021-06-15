@@ -4,7 +4,7 @@ import inquirer from 'inquirer';
 import { execSync } from 'child_process';
 import { join, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
-import { setAuthHeader, uploadFileToNetSuite } from './uploadHelper.js';
+import { setAuthConfig, uploadFileToNetSuite } from './uploadHelper.js';
 
 const dirName = dirname(fileURLToPath(import.meta.url))
 const currentWD = process.cwd()
@@ -12,11 +12,11 @@ const envPath = join(dirName, '../../.env');
 const vscodeSettingsPath = join(dirName, '../../.vscode/settings.json');
 const cwitchconfigPath = join(dirName, '../../cwitchconfig.json');
 const ALLOWED_EXTENSIONS = ['.js', '.html']
+const JUST_SWITCH_ACC = 'Just Switch Account'
 
 let tsconfigPath = '';
 let choiceMap = null;
 
-const JUST_SWITCH_ACC = 'Just Switch Account'
 
 const showMenu = async () => {
     try {
@@ -80,7 +80,7 @@ const getAuthDetails = ({ accountType, option = '-a', dirPaths = [] }) => {
             const consumerToken = process.env[`${key}CONSUMER_TOKEN`]
             const consumerSecret = process.env[`${key}CONSUMER_SECRET`]
 
-            setAuthHeader({ nsKey, nsSecret, consumerToken, consumerSecret, realm, restlet })
+            setAuthConfig({ nsKey, nsSecret, consumerToken, consumerSecret, realm, restlet })
 
             compileAndModifySettings({ restlet, nsKey, nsSecret, consumerSecret, consumerToken, realm, shoudCompile: option === '-a', dirPaths })
         } else {
@@ -124,6 +124,7 @@ const compileTS = ({ dirPaths = [] }) => {
 }
 
 const uploadDirectory = async ({ dirPaths }) => {
+
     const files = []
 
     dirPaths.forEach((path) => {
@@ -149,6 +150,7 @@ const printHelp = () => {
     console.log('-h\t\t\t\tPrint help message.')
     console.log('-a ACCOUNT NAME\t\t\tCompile ts files to js and set auth for the given account: p, a, s, r or production, admin tech, staging, release preview')
     console.log('-s ACCOUNT NAME\t\t\tSet auth for the given account: p, a, s, r or production, admin tech, staging, release preview')
+    console.log('-u DIRECTORY PATH\t\tUpload valid files indise the given directories: you can separate relative directory paths by space')
 }
 
 const log = ({ message, showHelp = true }) => {

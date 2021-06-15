@@ -2,12 +2,11 @@ import { dirName } from './helper.js';
 import { URL } from 'url';
 import { readFileSync } from 'fs';
 import { basename, join } from 'path';
-import OAuth from 'oauth-1.0a';
 import crypto from 'crypto';
+import OAuth from 'oauth-1.0a';
 import superagent from 'superagent';
 
-let authHeader = null;
-let restletURL = null;
+let authData = {};
 
 function getSuiteScriptPath(filePath) {
     const rootPath = join(dirName, '../../')
@@ -15,6 +14,7 @@ function getSuiteScriptPath(filePath) {
 }
 
 function uploadFileToNetSuite(filePath) {
+
     return new Promise((resolve, reject) => {
         const fileContent = readFileSync(filePath, 'utf8');
 
@@ -29,7 +29,6 @@ function uploadFileToNetSuite(filePath) {
 
 function postFile(filePath, content, callback) {
     postData('file', filePath, content, callback);
-
 }
 
 function postData(type, filePath, content, callback) {
@@ -39,16 +38,21 @@ function postData(type, filePath, content, callback) {
         name: relativeName,
         content: content
     };
-    superagent.post(restletURL)
+    superagent.post(authData.restlet)
         .set("Content-Type", "application/json")
-        .set("Authorization", authHeader)
+        .set("Authorization", getAuthHeader())
         .send(data)
         .end((err, res) => {
             callback(err, res);
         });
 }
 
-function setAuthHeader({ nsKey, nsSecret, consumerToken, consumerSecret, realm, restlet }) {
+function setAuthConfig({ nsKey, nsSecret, consumerToken, consumerSecret, realm, restlet }) {
+    authData = Object.assign(authData, { nsKey, nsSecret, consumerToken, consumerSecret, realm, restlet });
+}
+
+function getAuthHeader() {
+    const { nsKey, nsSecret, consumerToken, consumerSecret, realm, restlet } = authData;
     if (nsKey && nsKey.length > 0) {
         const opts = {
             consumer: {
@@ -80,9 +84,7 @@ function setAuthHeader({ nsKey, nsSecret, consumerToken, consumerSecret, realm, 
             data: qs
         }, token));
 
-        restletURL = restlet;
-        authHeader = header.Authorization;
-        return true;
+        return header.Authorization
     }
 
     throw "No authentication method found in settings.json (user or workspace settings).";
@@ -165,4 +167,4 @@ function hasNetSuiteError(custommessage, err, response) {
     return false;
 }
 
-export { uploadFileToNetSuite, setAuthHeader }
+export { uploadFileToNetSuite, setAuthConfig }
