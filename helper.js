@@ -116,11 +116,13 @@ const compileAndModifySettings = ({ restlet, nsKey, nsSecret, consumerToken, con
 }
 
 const compileTS = ({ dirPaths = [] }) => {
-    execSync(`tsc -p ${tsconfigPath}`, (err) => {
-        if (err) rej(err);
+    execSync(`tsc -p ${tsconfigPath}`, { stdio: 'inherit' }, (err) => {
+        if (err) {
+            return err;
+        } else {
+            if (dirPaths[0]) uploadDirectory({ dirPaths })
+        }
     });
-
-    if (dirPaths[0]) uploadDirectory({ dirPaths })
 }
 
 const uploadDirectory = async ({ dirPaths }) => {
